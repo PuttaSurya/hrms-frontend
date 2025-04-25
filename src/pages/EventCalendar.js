@@ -9,12 +9,23 @@ const EventCalendar = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [events, setEvents] = useState([]);
   const [currentEvent, setCurrentEvent] = useState(null);
-  const [eventTitle, setEventTitle] = useState('');
+  const [eventLeaveType, setEventLeaveType] = useState('');
   const [eventDescription, setEventDescription] = useState('');
 
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  const leaveTypes = [
+    "Annual Leave",
+    "Volunteering Leave",
+    "Paternity Leave",
+    "Sabbatical Leave",
+    "Relocation Leave",
+    "Family Care Leave",
+    "Compassionate Leave",
+    "Marriage Leave"
+  ];
 
   const fetchEvents = async () => {
     try {
@@ -25,27 +36,44 @@ const EventCalendar = () => {
     }
   };
 
+  const formatEvents = (events) => {
+    return events.map(event => {
+      const start = new Date(event.start);
+      const end = new Date(event.end);
+      end.setDate(end.getDate() + 1); // Add one day to include the end date
+      return {
+        ...event,
+        title: event.LeaveType,
+        start: start,
+        end: end,
+        allDay: true,
+      };
+    });
+  };
+
   const handleDateClick = (arg) => {
     const clickedDate = arg.date;
     const existingEvent = events.find(event => 
       new Date(event.start).toDateString() === clickedDate.toDateString()
     );
-
+  
     if (existingEvent) {
       setCurrentEvent(existingEvent);
-      setEventTitle(existingEvent.title);
+      setEventLeaveType(existingEvent.LeaveType);
       setEventDescription(existingEvent.description || '');
       setSelectedDate({
         start: new Date(existingEvent.start),
         end: new Date(existingEvent.end)
       });
     } else {
+      const endDate = new Date(clickedDate);
+      endDate.setDate(endDate.getDate()); 
       setCurrentEvent(null);
-      setEventTitle('');
+      setEventLeaveType('');
       setEventDescription('');
       setSelectedDate({
         start: clickedDate,
-        end: new Date(clickedDate.getTime() + 60 * 60 * 1000) 
+        end: endDate
       });
     }
     setModalOpen(true);
@@ -54,22 +82,21 @@ const EventCalendar = () => {
   const closeModal = () => {
     setModalOpen(false);
     setCurrentEvent(null);
-    setEventTitle('');
+    setEventLeaveType('');
     setEventDescription('');
   };
 
   const handleSaveOrUpdateEvent = async () => {
-    if (!eventTitle.trim()) {
-      alert('Please enter an event title');
+    if (!eventLeaveType.trim()) {
+      alert('Please select a leave type');
       return;
     }
-
     const eventData = {
-      title: eventTitle,
+      LeaveType: eventLeaveType,
       start: selectedDate.start.toISOString(),
       end: selectedDate.end.toISOString(),
       description: eventDescription,
-      display: 'block'  // This will make the event appear as a block
+      display: 'block'
     };
 
     try {
@@ -82,6 +109,7 @@ const EventCalendar = () => {
         setEvents([...events, updatedEvent]);
       }
       closeModal();
+      await fetchEvents();
     } catch (error) {
       console.error('Failed to save/update event:', error);
       alert('Failed to save/update event. Please try again.');
@@ -102,9 +130,9 @@ const EventCalendar = () => {
   };
 
   const formatDateForInput = (date) => {
-    const offset = date.getTimezoneOffset();
-    const adjustedDate = new Date(date.getTime() - (offset*60*1000));
-    return adjustedDate.toISOString().slice(0, 16);
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
   };
 
   return (
@@ -122,8 +150,10 @@ const EventCalendar = () => {
         dayMaxEvents={true}
         nowIndicator={true}
         dateClick={handleDateClick}
-        events={events}
-        eventDisplay="block"  
+        events={formatEvents(events)}
+        eventContent={renderEventContent}
+        eventDisplay="block"
+        displayEventTime={false}
       />
 
       {modalOpen && selectedDate && (
@@ -134,19 +164,24 @@ const EventCalendar = () => {
               <span className="close" onClick={closeModal}>&times;</span>
             </div>
             <form onSubmit={(e) => e.preventDefault()}>
-              <label htmlFor="title">Leave Type:</label>
-              <input 
-                type="text" 
-                id="title" 
-                name="title" 
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
+              <label htmlFor="leaveType">Leave Type:</label>
+              <select 
+                id="leaveType" 
+                name="leaveType" 
+                value={eventLeaveType}
+                onChange={(e) => setEventLeaveType(e.target.value)}
                 required 
-              />
+                className="form-control"
+              >
+                <option value="">Select Leave Type</option>
+                {leaveTypes.map((type, index) => (
+                  <option key={index} value={type}>{type}</option>
+                ))}
+              </select>
 
               <label htmlFor="start">Start:</label>
               <input 
-                type="datetime-local" 
+                type="date" 
                 id="start" 
                 name="start" 
                 value={formatDateForInput(selectedDate.start)} 
@@ -156,7 +191,7 @@ const EventCalendar = () => {
 
               <label htmlFor="end">End:</label>
               <input 
-                type="datetime-local" 
+                type="date" 
                 id="end" 
                 name="end" 
                 value={formatDateForInput(selectedDate.end)}
@@ -184,6 +219,14 @@ const EventCalendar = () => {
           </div>
         </div>
       )}
+    </>
+  );
+};
+
+const renderEventContent = (eventInfo) => {
+  return (
+    <>
+      <b>{eventInfo.event.title}</b>
     </>
   );
 };
