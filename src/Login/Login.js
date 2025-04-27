@@ -48,6 +48,7 @@ const Login = () => {
         localStorage.setItem("userId", response.id);
         localStorage.setItem("fullName", response.fullName);
         localStorage.setItem("mobile", response.mobile);
+        localStorage.setItem('userRole', response.role);
 
         const storedToken = localStorage.getItem("token");
         console.log("Token stored successfully:", !!storedToken);
