@@ -3,6 +3,9 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { ApiRequestService } from '../services/api-request.service.ts';
+import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
 
 const EventCalendar = () => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -11,21 +14,21 @@ const EventCalendar = () => {
   const [currentEvent, setCurrentEvent] = useState(null);
   const [eventLeaveType, setEventLeaveType] = useState('');
   const [eventDescription, setEventDescription] = useState('');
+  const [roleType, setRoleType] = useState('');
+  const [managerId, setManagerId] = useState('');
+  const [managers, setManagers] = useState([]);
+
+  const [errors, setErrors] = useState({});
+
+  const leaveTypes = [
+    "Annual Leave", "Volunteering Leave", "Paternity Leave", "Sabbatical Leave",
+    "Relocation Leave", "Family Care Leave", "Compassionate Leave", "Marriage Leave",  "Work From Home"
+  ];
 
   useEffect(() => {
     fetchEvents();
+    fetchManagers();
   }, []);
-
-  const leaveTypes = [
-    "Annual Leave",
-    "Volunteering Leave",
-    "Paternity Leave",
-    "Sabbatical Leave",
-    "Relocation Leave",
-    "Family Care Leave",
-    "Compassionate Leave",
-    "Marriage Leave"
-  ];
 
   const fetchEvents = async () => {
     try {
@@ -36,27 +39,22 @@ const EventCalendar = () => {
     }
   };
 
-  const formatEvents = (events) => {
-    return events.map(event => {
-      const start = new Date(event.start);
-      const end = new Date(event.end);
-      end.setDate(end.getDate() + 1); // Add one day to include the end date
-      return {
-        ...event,
-        title: event.LeaveType,
-        start: start,
-        end: end,
-        allDay: true,
-      };
-    });
+  const fetchManagers = async () => {
+    try {
+      const response = await ApiRequestService.getManagers();
+      setManagers(response.managers || []);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      setManagers([]);
+    }
   };
 
   const handleDateClick = (arg) => {
     const clickedDate = arg.date;
-    const existingEvent = events.find(event => 
+    const existingEvent = events.find(event =>
       new Date(event.start).toDateString() === clickedDate.toDateString()
     );
-  
+
     if (existingEvent) {
       setCurrentEvent(existingEvent);
       setEventLeaveType(existingEvent.LeaveType);
@@ -65,54 +63,59 @@ const EventCalendar = () => {
         start: new Date(existingEvent.start),
         end: new Date(existingEvent.end)
       });
+      setRoleType(existingEvent.roleType || '');
+      setManagerId(existingEvent.managerId || '');
     } else {
-      const endDate = new Date(clickedDate);
-      endDate.setDate(endDate.getDate()); 
       setCurrentEvent(null);
       setEventLeaveType('');
       setEventDescription('');
-      setSelectedDate({
-        start: clickedDate,
-        end: endDate
-      });
+      setSelectedDate({ start: clickedDate, end: clickedDate });
+      setRoleType('');
+      setManagerId('');
     }
+    setErrors({});
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
-    setCurrentEvent(null);
-    setEventLeaveType('');
-    setEventDescription('');
+    setErrors({});
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!eventLeaveType) newErrors.eventLeaveType = 'Please select a Leave Type';
+    if (!selectedDate?.start) newErrors.startDate = 'Please select Start Date';
+    if (!selectedDate?.end) newErrors.endDate = 'Please select End Date';
+    if (!roleType) newErrors.roleType = 'Please select a Role Type';
+    if (roleType === 'employee' && !managerId) newErrors.managerId = 'Please select a Manager';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSaveOrUpdateEvent = async () => {
-    if (!eventLeaveType.trim()) {
-      alert('Please select a leave type');
-      return;
-    }
+    if (!validateForm()) return;
+
     const eventData = {
       LeaveType: eventLeaveType,
       start: selectedDate.start.toISOString(),
       end: selectedDate.end.toISOString(),
       description: eventDescription,
-      display: 'block'
+      display: 'block',
+      roleType: roleType,
+      managerId: managerId
     };
 
     try {
-      let updatedEvent;
       if (currentEvent) {
-        updatedEvent = await ApiRequestService.updateEvent({ ...eventData, id: currentEvent._id });
-        setEvents(events.map(event => event._id === updatedEvent._id ? updatedEvent : event));
+        await ApiRequestService.updateEvent({ ...eventData, id: currentEvent._id });
       } else {
-        updatedEvent = await ApiRequestService.createEvent(eventData);
-        setEvents([...events, updatedEvent]);
+        await ApiRequestService.createEvent(eventData);
       }
       closeModal();
       await fetchEvents();
     } catch (error) {
       console.error('Failed to save/update event:', error);
-      alert('Failed to save/update event. Please try again.');
     }
   };
 
@@ -124,12 +127,12 @@ const EventCalendar = () => {
         closeModal();
       } catch (error) {
         console.error('Failed to delete event:', error);
-        alert('Failed to delete event. Please try again.');
       }
     }
   };
 
   const formatDateForInput = (date) => {
+    if (!date) return '';
     const d = new Date(date);
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().split('T')[0];
@@ -150,83 +153,127 @@ const EventCalendar = () => {
         dayMaxEvents={true}
         nowIndicator={true}
         dateClick={handleDateClick}
-        events={formatEvents(events)}
-        eventContent={renderEventContent}
-        eventDisplay="block"
+        events={events.map(event => ({
+          ...event,
+          title: event.LeaveType,
+          start: event.start,
+          end: new Date(new Date(event.end).setDate(new Date(event.end).getDate() + 1)),
+          allDay: true,
+          backgroundColor: event.status === 'approved' ? '#28a745' : '#007bff',
+          borderColor: event.status === 'approved' ? '#28a745' : '#007bff',
+        }))}
         displayEventTime={false}
       />
 
-      {modalOpen && selectedDate && (
-        <div className="modal">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>{currentEvent ? 'Edit Leave' : 'Apply for New Leave'}</h2>
-              <span className="close" onClick={closeModal}>&times;</span>
-            </div>
-            <form onSubmit={(e) => e.preventDefault()}>
-              <label htmlFor="leaveType">Leave Type:</label>
-              <select 
-                id="leaveType" 
-                name="leaveType" 
-                value={eventLeaveType}
-                onChange={(e) => setEventLeaveType(e.target.value)}
-                required 
-                className="form-control"
-              >
-                <option value="">Select Leave Type</option>
-                {leaveTypes.map((type, index) => (
-                  <option key={index} value={type}>{type}</option>
-                ))}
-              </select>
+      <Modal show={modalOpen} onHide={closeModal} centered size="md">
+      <Modal.Header closeButton>
+          <Modal.Title>{currentEvent ? 'Edit Leave' : 'Apply for New Leave'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ backgroundColor: '#ffffff' }}>
+  <Form>
+    <Row className="g-3">
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>Leave Type</Form.Label>
+          <Form.Select
+            value={eventLeaveType}
+            onChange={(e) => setEventLeaveType(e.target.value)}
+          >
+            <option value="">Select Leave Type</option>
+            {leaveTypes.map((type, index) => (
+              <option key={index} value={type}>{type}</option>
+            ))}
+          </Form.Select>
+          {errors.eventLeaveType && <div className="text-danger">{errors.eventLeaveType}</div>}
+        </Form.Group>
+      </Col>
 
-              <label htmlFor="start">Start:</label>
-              <input 
-                type="date" 
-                id="start" 
-                name="start" 
-                value={formatDateForInput(selectedDate.start)} 
-                onChange={(e) => setSelectedDate({...selectedDate, start: new Date(e.target.value)})}
-                required 
-              />
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>Start Date</Form.Label>
+          <Form.Control
+            type="date"
+            value={formatDateForInput(selectedDate?.start)}
+            onChange={(e) => setSelectedDate({ ...selectedDate, start: new Date(e.target.value) })}
+          />
+          {errors.startDate && <div className="text-danger">{errors.startDate}</div>}
+        </Form.Group>
+      </Col>
 
-              <label htmlFor="end">End:</label>
-              <input 
-                type="date" 
-                id="end" 
-                name="end" 
-                value={formatDateForInput(selectedDate.end)}
-                onChange={(e) => setSelectedDate({...selectedDate, end: new Date(e.target.value)})}
-                required 
-              />
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>End Date</Form.Label>
+          <Form.Control
+            type="date"
+            value={formatDateForInput(selectedDate?.end)}
+            onChange={(e) => setSelectedDate({ ...selectedDate, end: new Date(e.target.value) })}
+          />
+          {errors.endDate && <div className="text-danger">{errors.endDate}</div>}
+        </Form.Group>
+      </Col>
 
-              <label htmlFor="description">Description:</label>
-              <textarea 
-                id="description" 
-                name="description"
-                value={eventDescription}
-                onChange={(e) => setEventDescription(e.target.value)}
-              ></textarea>
-            </form>
-            <div className="modal-footer">
-              <button type="button" className="btn-save" onClick={handleSaveOrUpdateEvent}>
-                {currentEvent ? 'Update' : 'Save'}
-              </button>
-              {currentEvent && (
-                <button type="button" className="btn-delete" onClick={handleDeleteEvent}>Delete</button>
-              )}
-              <button type="button" className="btn-cancel" onClick={closeModal}>Cancel</button>
-            </div>
-          </div>
-        </div>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>Role Type</Form.Label>
+          <Form.Select
+            value={roleType}
+            onChange={(e) => setRoleType(e.target.value)}
+          >
+            <option value="">Select Role Type</option>
+            <option value="employee">Employee</option>
+            <option value="manager">Manager</option>
+          </Form.Select>
+          {errors.roleType && <div className="text-danger">{errors.roleType}</div>}
+        </Form.Group>
+      </Col>
+
+      {roleType === 'employee' && (
+        <Col md={12}>
+          <Form.Group>
+            <Form.Label>Manager</Form.Label>
+            <Form.Select
+              value={managerId}
+              onChange={(e) => setManagerId(e.target.value)}
+            >
+              <option value="">Select Manager</option>
+              {managers.map((manager) => (
+                <option key={manager._id} value={manager._id}>
+                  {manager.fullName}
+                </option>
+              ))}
+            </Form.Select>
+            {errors.managerId && <div className="text-danger">{errors.managerId}</div>}
+          </Form.Group>
+        </Col>
       )}
-    </>
-  );
-};
 
-const renderEventContent = (eventInfo) => {
-  return (
-    <>
-      <b>{eventInfo.event.title}</b>
+      <Col md={12}>
+        <Form.Group>
+          <Form.Label>Description</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            value={eventDescription}
+            onChange={(e) => setEventDescription(e.target.value)}
+            placeholder="Enter description (optional)"
+          />
+        </Form.Group>
+      </Col>
+    </Row>
+  </Form>
+</Modal.Body>
+
+
+        <Modal.Footer style={{ backgroundColor: '#ffffff' }}>
+          <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+          {currentEvent && (
+            <Button variant="danger" onClick={handleDeleteEvent}>Delete</Button>
+          )}
+          <Button variant="primary" onClick={handleSaveOrUpdateEvent}>
+            {currentEvent ? 'Update' : 'Save'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 };

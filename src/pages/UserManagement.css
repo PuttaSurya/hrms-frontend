@@ -1,0 +1,72 @@
+/* Card Shadow */
+.custom-card-shadow {
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+  border: none;
+}
+
+/* Title */
+.card-title {
+  color: #495057;
+}
+
+/* Table centered cells */
+.table-centered th,
+.table-centered td {
+  vertical-align: middle;
+}
+
+/* Icon Button */
+.btn-icon {
+  padding: 0.25rem 0.5rem;
+}
+
+/* Search Box */
+.search-box {
+  width: 220px;
+}
+
+/* Responsive table */
+.table-responsive {
+  overflow-x: auto;
+}
+
+/* Small Modal */
+.custom-small-modal .modal-dialog {
+  max-width: 400px; /* Reduced even more */
+}
+
+/* Form spacing inside modal */
+.modal-body .form-group {
+  margin-bottom: 8px; /* smaller gap */
+}
+
+
+.modal-box {
+    background: #fff;
+    border-radius: 5px;
+  }
+  
+  .modal-body {
+    padding: 0; /* Remove extra padding */
+  }
+  
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .form-label {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+  
+  .modal-footer {
+    border-top: 1px solid #dee2e6;
+  }
+  
+
+  /* Custom Modal Positioning */
+.modal-dialog {
+    margin-top: -20px;  /* Adjust this value to your liking */
+  }
+  
+  
