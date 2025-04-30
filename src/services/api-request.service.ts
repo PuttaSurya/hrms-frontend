@@ -1,8 +1,8 @@
 import axiosInstance from '../components/axiosInterceptor';
 
 
-const API_BASE_URL =  'https://leaveapi.aultrapaints.com/api';
-//const API_BASE_URL = 'http://localhost:5000/api'
+//const API_BASE_URL =  'https://leaveapi.aultrapaints.com/api';
+const API_BASE_URL = 'http://localhost:5000/api'
 
 console.log('API_BASE_URL:', API_BASE_URL);
 
@@ -96,6 +96,19 @@ export const ApiRequestService = {
     }
   },
 
+  getUserLeaveBalances: async (userId: string, leaveType: string) => {
+    try {
+      const response = await axiosInstance.post(`${API_BASE_URL}/user/leave-balances`, {
+        userId,
+        leaveType
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user leave balances:', error);
+      throw error;
+    }
+  },
+
   getManagers: async () => {
     try {
       const response = await axiosInstance.get(`${API_BASE_URL}/user/managers`);
@@ -125,6 +138,16 @@ export const ApiRequestService = {
       console.error('Error performing leave action:', error);
       throw error;
     }
-  }
+  },
+
+  getAllHolidays: async () => {
+    try {
+      const response = await axiosInstance.get(`${API_BASE_URL}/holidays/all`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching holidays:', error);
+      throw error;
+    }
+  },
 };
 

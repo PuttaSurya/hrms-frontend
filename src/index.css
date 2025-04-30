@@ -82,7 +82,7 @@ body {
 
 .fc-col-header-cell {
   background-color: #ffffff;
-  color: #3788d8;
+  
 }
 
 
@@ -135,6 +135,26 @@ body {
   background-color: #fff !important;
   border-color: #ddd !important;
   color: #333 !important;
+}
+
+.fc .fc-col-header-cell.is-weekend {
+  background-color: rgba(141, 3, 141, 0.697) !important; 
+  color: #ffffff !important; /* White text */
+}
+
+.fc .fc-col-header-cell.is-weekend .fc-col-header-cell-cushion {
+  color: #ffffff !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 !important;
+}
+
+/* Remove the blue line */
+.fc .fc-scrollgrid-section-header th {
+  border-bottom: none !important;
 }
 
 .fc-toolbar-title {

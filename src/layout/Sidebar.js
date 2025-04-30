@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ChevronDown, ChevronRight, Users, ListTodo, List } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronRight, Users, RectangleEllipsis, List } from 'lucide-react';
 
 const Sidebar = () => {
   const [masterExpanded, setMasterExpanded] = useState(false);
@@ -99,7 +99,6 @@ const Sidebar = () => {
             </div>
           </Link>
         </li>
-        {userRole === 'manager' && (
           <>
             <li style={styles.menuItem}>
               <Link 
@@ -109,7 +108,7 @@ const Sidebar = () => {
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
                 <div style={styles.menuContent}>
-                  <ListTodo size={20} />
+                <RectangleEllipsis size={20} />
                   <span style={styles.menuText}>Pending Tasks</span>
                 </div>
               </Link>
@@ -149,7 +148,6 @@ const Sidebar = () => {
               )}
             </li>
           </>
-        )}
       </ul>
     </div>
   );

@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 
 const PendingTasks = () => {
   const [employeeLeaves, setEmployeeLeaves] = useState([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     fetchEmployeeLeaves();
@@ -14,8 +15,10 @@ const PendingTasks = () => {
     try {
       const response = await ApiRequestService.getManagerEmployeeLeaves();
       setEmployeeLeaves(response);
+      setDataLoaded(true);
     } catch (error) {
-      toast.error('Failed to fetch employee leaves');
+      console.error('Error fetching employee leaves:', error);
+      setDataLoaded(true); 
     }
   };
 
@@ -36,6 +39,19 @@ const PendingTasks = () => {
       toast.error(`Failed to ${action} leave`);
     }
   };
+
+  if (!dataLoaded) {
+    return <div>Loading...</div>;
+  }
+
+  if (employeeLeaves.length === 0) {
+    return (
+      <Container>
+        <h1 className="my-4">Pending Leave Requests</h1>
+        <p>No data found</p>
+      </Container>
+    );
+  }
 
   return (
     <Container>
