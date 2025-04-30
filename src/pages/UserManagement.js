@@ -3,53 +3,63 @@ import { ApiRequestService } from '../services/api-request.service.ts';
 import { toast } from 'react-toastify';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Modal, Button, Form, Table, Card, Row, Col } from 'react-bootstrap';
+import { Modal, Button, Form, Table, Card, Row, Col, Pagination} from 'react-bootstrap';
 import './UserManagement.css';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState({
     fullName: '',
     mobile: '',
     password: '',
-    role: ''
+   manager: ''
   });
   const [isEditing, setIsEditing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const limit = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [limit, setLimit] = useState(10);
   
 
   useEffect(() => {
-    fetchUsers();
+    searchUsers(searchQuery);
   }, [currentPage]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
       const fetchedUsers = await ApiRequestService.getAllUsers();
       setUsers(fetchedUsers);
+      setAllUsers(fetchedUsers);  
     } catch (error) {
       toast.error('Failed to fetch users');
     }
   };
 
-  const searchUsers = async () => {
+  const searchUsers = async (query) => {
     try {
+      setDataLoaded(false);
       const payload = {
-        search: searchQuery,
+        search: query,
         page: currentPage,
         limit: limit
       };
-      const searchResults = await ApiRequestService.searchUsers(payload);
-      setUsers(searchResults.data || []); 
+      const searchResults = await ApiRequestService.searchUsers(payload); 
+      setUsers(searchResults.users || []); 
+      setTotalPages(searchResults.pages || 1);
+      setDataLoaded(true);
     } catch (error) {
-      console.error('Error searching users:', error);
       toast.error('Failed to search users');
       setUsers([]); 
+      setDataLoaded(true);
     }
   };
-
 
 
   const handleShowModal = (user = null) => {
@@ -58,11 +68,11 @@ const UserManagement = () => {
         _id: user._id,
         fullName: user.fullName,
         mobile: user.mobile,
-        role: user.role,
+        manager: user.manager || ''
       });
       setIsEditing(true);
     } else {
-      setCurrentUser({ fullName: '', mobile: '', password: '', role: '' });
+      setCurrentUser({ fullName: '', mobile: '', password: '', manager: '' });
       setIsEditing(false);
     }
     setShowModal(true);
@@ -70,7 +80,7 @@ const UserManagement = () => {
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setCurrentUser({ fullName: '', mobile: '', password: '', role: '' });
+    setCurrentUser({ fullName: '', mobile: '', password: '', manager: '' });
     setIsEditing(false);
   };
 
@@ -91,10 +101,6 @@ const UserManagement = () => {
     }
     if (!isEditing && (!password || password.length < 6)) {
       toast.error('Password must be at least 6 characters');
-      return false;
-    }
-    if (!role) {
-      toast.error('Role is required');
       return false;
     }
     return true;
@@ -130,6 +136,32 @@ const UserManagement = () => {
   };
 
 
+  const renderPagination = () => {
+    return (
+      <Pagination className="justify-content-end">
+        <Pagination.Prev 
+          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+        />
+        {Array.from({ length: totalPages }, (_, index) => (
+          <Pagination.Item 
+            key={index + 1} 
+            active={index + 1 === currentPage} 
+            onClick={() => setCurrentPage(index + 1)}
+          >
+            {index + 1}
+          </Pagination.Item>
+        ))}
+        <Pagination.Next 
+          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+          disabled={currentPage === totalPages}
+        />
+      </Pagination>
+    );
+  };
+
+
+
   return (
     <div className="container-fluid py-4">
       <Card className="custom-card-shadow">
@@ -139,19 +171,22 @@ const UserManagement = () => {
               <h4 className="card-title mb-0">Users</h4>
             </div>
             <div className="col-sm-6">
-              <div className="d-flex justify-content-end align-items-center gap-3">
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onInput={searchUsers}
-                  placeholder="Search user..."
-                  className="form-control search-box"
-                />
-                <Button variant="primary" onClick={() => handleShowModal()}>
-                 Add User
-                </Button>
-              </div>
-            </div>
+  <div className="d-flex justify-content-end align-items-center gap-3">
+    <input
+              value={searchQuery}
+              onChange={(e) => {
+                const newQuery = e.target.value;
+                setSearchQuery(newQuery);
+                searchUsers(newQuery);
+              }}
+              placeholder="Search user..."
+              className="form-control search-box"
+            />
+    <Button variant="primary" onClick={() => handleShowModal()}>
+      Add User
+    </Button>
+  </div>
+</div>
           </div>
 
           <div className="table-responsive">
@@ -161,17 +196,16 @@ const UserManagement = () => {
                   <th>S.NO</th>
                   <th>Name</th>
                   <th>Mobile</th>
-                  <th>Role</th>
                   <th className="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user, index) => (
+                {users.length > 0 ? (
+                users.map((user, index) => (
                   <tr key={user._id}>
                     <td>{(currentPage - 1) * limit + index + 1}</td>
                     <td>{user.fullName}</td>
                     <td>{user.mobile}</td>
-                    <td>{user.role}</td>
                     <td className="text-center">
                       <Button variant="warning" className="btn-icon me-2" size="sm" onClick={() => handleShowModal(user)} title="Update User">
                         <Edit size={16} />
@@ -181,8 +215,8 @@ const UserManagement = () => {
                       </Button>
                     </td>
                   </tr>
-                ))}
-                {users.length === 0 && (
+                ))
+            ) : (
                   <tr>
                     <td className="text-center" colSpan="5">No Records found</td>
                   </tr>
@@ -190,6 +224,8 @@ const UserManagement = () => {
               </tbody>
             </Table>
           </div>
+           {/* Pagination */}
+           {renderPagination()}
         </Card.Body>
       </Card>
 
@@ -239,19 +275,21 @@ const UserManagement = () => {
             </Col>
           )}
 
-          <Col md={6}>
-            <Form.Label>Role</Form.Label>
-            <Form.Select
-              name="role"
-              value={currentUser.role}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">Select role</option>
-              <option value="employee">Employee</option>
-              <option value="manager">Manager</option>
-            </Form.Select>
-          </Col>
+<Col md={6}>
+  <Form.Label>Manager</Form.Label>
+  <Form.Select
+    name="manager"
+    value={currentUser.manager}
+    onChange={handleInputChange}
+  >
+    <option value="">Select manager</option>
+    {allUsers.map((user) => (
+      <option key={user._id} value={user._id}>
+        {user.fullName}
+      </option>
+    ))}
+  </Form.Select>
+</Col>
         </Row>
       </Form.Group>
     </Modal.Body>
